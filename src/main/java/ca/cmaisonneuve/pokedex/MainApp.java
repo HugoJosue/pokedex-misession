@@ -1,5 +1,6 @@
 package ca.cmaisonneuve.pokedex;
 
+import ca.cmaisonneuve.pokedex.controller.PokedexController;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -16,6 +17,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class MainApp extends Application {
+
+    // le controller qui fait le lien entre l'interface, l'api et la bd
+    private final PokedexController controller = new PokedexController();
 
     @Override
     public void start(Stage stagePrincipal) {
@@ -40,23 +44,19 @@ public class MainApp extends Application {
 
         // --- carte info au centre ---
 
-        // l'image du pokémon (artwork officiel)
         ImageView imagePokemon = new ImageView();
         imagePokemon.setFitWidth(200);
         imagePokemon.setFitHeight(200);
-        imagePokemon.setPreserveRatio(true); // évite de déformer l'image
+        imagePokemon.setPreserveRatio(true);
 
         Label labelNom = new Label("Aucun pokémon sélectionné");
         labelNom.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
-        // grille pour aligner les 6 stats proprement en colonnes (nom / barre / valeur)
         GridPane grilleStats = new GridPane();
-        grilleStats.setHgap(10); // espace horizontal entre colonnes
-        grilleStats.setVgap(8);  // espace vertical entre lignes
+        grilleStats.setHgap(10);
+        grilleStats.setVgap(8);
         grilleStats.setPadding(new Insets(15, 0, 0, 0));
 
-        // on crée une ligne par stat ; on garde les ProgressBar dans des variables
-        // pour pouvoir les mettre à jour plus tard depuis le controller
         ProgressBar barreHp = new ProgressBar(0);
         ProgressBar barreAttaque = new ProgressBar(0);
         ProgressBar barreDefense = new ProgressBar(0);
@@ -77,6 +77,13 @@ public class MainApp extends Application {
 
         racine.setCenter(carteInfo);
 
+        // quand on clique le bouton, on délègue au controller
+        // (on lui passe ce dont il a besoin pour faire son travail et mettre à jour l'ui)
+        boutonRechercher.setOnAction(evenement -> {
+            String texteRecherche = champRecherche.getText();
+            controller.rechercherPokemon(texteRecherche, boutonRechercher, labelNom);
+        });
+
         Scene scene = new Scene(racine, 900, 600);
 
         stagePrincipal.setTitle("Pokédex");
@@ -84,8 +91,6 @@ public class MainApp extends Application {
         stagePrincipal.show();
     }
 
-    // méthode utilitaire : ajoute une ligne "nom stat | barre | valeur" dans la grille
-    // évite de répéter le même code 6 fois pour chaque stat
     private void ajouterLigneStat(GridPane grille, int ligne, String nomStat, ProgressBar barre) {
         Label label = new Label(nomStat);
         label.setPrefWidth(80);
