@@ -18,14 +18,13 @@ import javafx.stage.Stage;
 
 public class MainApp extends Application {
 
-    // le controller qui fait le lien entre l'interface, l'api et la bd
     private final PokedexController controller = new PokedexController();
 
     @Override
     public void start(Stage stagePrincipal) {
         BorderPane racine = new BorderPane();
 
-        // zone de recherche : champ texte + bouton, alignés horizontalement
+        // zone de recherche
         TextField champRecherche = new TextField();
         champRecherche.setPromptText("Nom ou id du pokémon...");
 
@@ -36,7 +35,7 @@ public class MainApp extends Application {
 
         racine.setTop(barreRecherche);
 
-        // liste des pokémons capturés, affichés par nom
+        // liste des pokémons capturés
         ListView<String> listePokemons = new ListView<>();
         listePokemons.setPrefWidth(200);
 
@@ -77,13 +76,21 @@ public class MainApp extends Application {
 
         racine.setCenter(carteInfo);
 
-        // quand on clique le bouton, on délègue au controller
-        // (on lui passe ce dont il a besoin pour faire son travail et mettre à jour l'ui)
+        // on passe maintenant tous les éléments dont le controller a besoin
+        // pour mettre à jour l'image, les stats et la liste
         boutonRechercher.setOnAction(evenement -> {
             String texteRecherche = champRecherche.getText();
-            controller.rechercherPokemon(texteRecherche, boutonRechercher, labelNom);
+            controller.rechercherPokemon(texteRecherche, boutonRechercher, labelNom,
+                    imagePokemon, listePokemons,
+                    barreHp, barreAttaque, barreDefense, barreAttaqueSpe, barreDefenseSpe, barreVitesse);
         });
-
+        // quand on clique sur un nom dans la liste, on réaffiche ce pokémon
+        // (données déjà en mémoire, pas besoin de rappeler l'api)
+        listePokemons.setOnMouseClicked(evenement -> {
+            String nomSelectionne = listePokemons.getSelectionModel().getSelectedItem();
+            controller.afficherPokemonSelectionne(nomSelectionne, labelNom, imagePokemon,
+                    barreHp, barreAttaque, barreDefense, barreAttaqueSpe, barreDefenseSpe, barreVitesse);
+        });
         Scene scene = new Scene(racine, 900, 600);
 
         stagePrincipal.setTitle("Pokédex");
