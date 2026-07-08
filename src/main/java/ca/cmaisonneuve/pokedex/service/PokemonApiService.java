@@ -21,6 +21,7 @@ public class PokemonApiService {
 
         HttpRequest requete = HttpRequest.newBuilder()
                 .uri(URI.create(url))
+                .timeout(java.time.Duration.ofSeconds(5)) // évite d'attendre indéfiniment si le serveur ne répond pas
                 .GET()
                 .build();
 

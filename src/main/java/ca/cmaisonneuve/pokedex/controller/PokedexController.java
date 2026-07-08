@@ -23,14 +23,16 @@ public class PokedexController {
 
     private static final double STAT_MAX = 255.0;
 
-    // garde en mémoire la dernière liste chargée depuis la bd
-    // pour pouvoir retrouver un pokémon par son nom quand on clique dessus dans la liste
     private List<Pokemon> pokemonsCourants;
+    private Pokemon pokemonAffiche;
 
-    public void rechercherPokemon(String nomOuId, Button boutonRechercher, Label labelNom,
+    public void rechercherPokemon(String nomOuId, Button boutonRechercher, Label labelNom, Label idPokemon,
                                   ImageView imagePokemon, ListView<String> listePokemons,
+                                  Label badgeType1, Label badgeType2,
                                   ProgressBar barreHp, ProgressBar barreAttaque, ProgressBar barreDefense,
-                                  ProgressBar barreAttaqueSpe, ProgressBar barreDefenseSpe, ProgressBar barreVitesse) {
+                                  ProgressBar barreAttaqueSpe, ProgressBar barreDefenseSpe, ProgressBar barreVitesse,
+                                  Label valeurHp, Label valeurAttaque, Label valeurDefense,
+                                  Label valeurAttaqueSpe, Label valeurDefenseSpe, Label valeurVitesse) {
 
         if (nomOuId == null || nomOuId.isBlank()) {
             labelNom.setText("Veuillez entrer un nom ou un id.");
@@ -50,14 +52,11 @@ public class PokedexController {
                 Platform.runLater(() -> {
                     pokemonsCourants = tousLesPokemons;
 
-                    afficherPokemon(pokemon, labelNom, imagePokemon,
-                            barreHp, barreAttaque, barreDefense, barreAttaqueSpe, barreDefenseSpe, barreVitesse);
+                    afficherPokemon(pokemon, labelNom, idPokemon, imagePokemon, badgeType1, badgeType2,
+                            barreHp, barreAttaque, barreDefense, barreAttaqueSpe, barreDefenseSpe, barreVitesse,
+                            valeurHp, valeurAttaque, valeurDefense, valeurAttaqueSpe, valeurDefenseSpe, valeurVitesse);
 
-                    ObservableList<String> noms = FXCollections.observableArrayList();
-                    for (Pokemon p : tousLesPokemons) {
-                        noms.add(p.nom());
-                    }
-                    listePokemons.setItems(noms);
+                    rafraichirListe(listePokemons, tousLesPokemons);
 
                     boutonRechercher.setDisable(false);
                 });
@@ -68,9 +67,27 @@ public class PokedexController {
                     boutonRechercher.setDisable(false);
                 });
 
+            } catch (java.net.http.HttpTimeoutException e) {
+                Platform.runLater(() -> {
+                    labelNom.setText("Le serveur PokéAPI met trop de temps à répondre. Réessayez.");
+                    boutonRechercher.setDisable(false);
+                });
+
+            } catch (java.net.ConnectException | java.net.UnknownHostException e) {
+                Platform.runLater(() -> {
+                    labelNom.setText("Pas de connexion internet. Vérifiez votre réseau.");
+                    boutonRechercher.setDisable(false);
+                });
+
+            } catch (java.sql.SQLException e) {
+                Platform.runLater(() -> {
+                    labelNom.setText("Impossible de joindre la base de données. Vérifiez que PostgreSQL est démarré.");
+                    boutonRechercher.setDisable(false);
+                });
+
             } catch (Exception e) {
                 Platform.runLater(() -> {
-                    labelNom.setText("Erreur : " + e.getMessage());
+                    labelNom.setText("Erreur inattendue : " + e.getMessage());
                     boutonRechercher.setDisable(false);
                 });
             }
@@ -79,35 +96,104 @@ public class PokedexController {
         threadRecherche.start();
     }
 
-    // appelée quand l'utilisateur clique sur un nom dans la listview
-    // pas besoin de thread ici : les données sont déjà en mémoire, aucun appel réseau
-    public void afficherPokemonSelectionne(String nom, Label labelNom, ImageView imagePokemon,
+    public void afficherPokemonSelectionne(String nom, Label labelNom, Label idPokemon, ImageView imagePokemon,
+                                           Label badgeType1, Label badgeType2,
                                            ProgressBar barreHp, ProgressBar barreAttaque, ProgressBar barreDefense,
-                                           ProgressBar barreAttaqueSpe, ProgressBar barreDefenseSpe, ProgressBar barreVitesse) {
+                                           ProgressBar barreAttaqueSpe, ProgressBar barreDefenseSpe, ProgressBar barreVitesse,
+                                           Label valeurHp, Label valeurAttaque, Label valeurDefense,
+                                           Label valeurAttaqueSpe, Label valeurDefenseSpe, Label valeurVitesse) {
 
         if (pokemonsCourants == null || nom == null) {
             return;
         }
 
-        // on cherche le pokémon correspondant au nom cliqué dans la liste en mémoire
         for (Pokemon p : pokemonsCourants) {
             if (p.nom().equals(nom)) {
-                afficherPokemon(p, labelNom, imagePokemon,
-                        barreHp, barreAttaque, barreDefense, barreAttaqueSpe, barreDefenseSpe, barreVitesse);
+                afficherPokemon(p, labelNom, idPokemon, imagePokemon, badgeType1, badgeType2,
+                        barreHp, barreAttaque, barreDefense, barreAttaqueSpe, barreDefenseSpe, barreVitesse,
+                        valeurHp, valeurAttaque, valeurDefense, valeurAttaqueSpe, valeurDefenseSpe, valeurVitesse);
                 return;
             }
         }
     }
 
-    // méthode commune qui met à jour la carte info
-    // utilisée à la fois après une recherche et après un clic dans la liste
-    // évite de dupliquer ce code à deux endroits
-    private void afficherPokemon(Pokemon pokemon, Label labelNom, ImageView imagePokemon,
-                                 ProgressBar barreHp, ProgressBar barreAttaque, ProgressBar barreDefense,
-                                 ProgressBar barreAttaqueSpe, ProgressBar barreDefenseSpe, ProgressBar barreVitesse) {
+    public void supprimerPokemonAffiche(Label labelNom, Label idPokemon, ImageView imagePokemon,
+                                        ListView<String> listePokemons, Label badgeType1, Label badgeType2,
+                                        ProgressBar barreHp, ProgressBar barreAttaque, ProgressBar barreDefense,
+                                        ProgressBar barreAttaqueSpe, ProgressBar barreDefenseSpe, ProgressBar barreVitesse,
+                                        Label valeurHp, Label valeurAttaque, Label valeurDefense,
+                                        Label valeurAttaqueSpe, Label valeurDefenseSpe, Label valeurVitesse) {
 
-        labelNom.setText(pokemon.nom());
+        if (pokemonAffiche == null) {
+            return;
+        }
+
+        Thread threadSuppression = new Thread(() -> {
+            try {
+                dao.supprimer(pokemonAffiche.id());
+                List<Pokemon> tousLesPokemons = dao.listerTous();
+
+                Platform.runLater(() -> {
+                    rafraichirListe(listePokemons, tousLesPokemons);
+
+                    labelNom.setText("Aucun pokémon sélectionné");
+                    idPokemon.setText("");
+                    imagePokemon.setImage(null);
+
+                    barreHp.setProgress(0);
+                    barreAttaque.setProgress(0);
+                    barreDefense.setProgress(0);
+                    barreAttaqueSpe.setProgress(0);
+                    barreDefenseSpe.setProgress(0);
+                    barreVitesse.setProgress(0);
+
+                    valeurHp.setText("0");
+                    valeurAttaque.setText("0");
+                    valeurDefense.setText("0");
+                    valeurAttaqueSpe.setText("0");
+                    valeurDefenseSpe.setText("0");
+                    valeurVitesse.setText("0");
+
+                    badgeType1.setVisible(false);
+                    badgeType2.setVisible(false);
+
+                    pokemonAffiche = null;
+                    pokemonsCourants = tousLesPokemons;
+                });
+
+            } catch (java.sql.SQLException e) {
+                Platform.runLater(() ->
+                        labelNom.setText("Impossible de supprimer : la base de données est inaccessible."));
+
+            } catch (Exception e) {
+                Platform.runLater(() -> labelNom.setText("Erreur inattendue lors de la suppression : " + e.getMessage()));
+            }
+        });
+
+        threadSuppression.start();
+    }
+
+    private void afficherPokemon(Pokemon pokemon, Label labelNom, Label idPokemon, ImageView imagePokemon,
+                                 Label badgeType1, Label badgeType2,
+                                 ProgressBar barreHp, ProgressBar barreAttaque, ProgressBar barreDefense,
+                                 ProgressBar barreAttaqueSpe, ProgressBar barreDefenseSpe, ProgressBar barreVitesse,
+                                 Label valeurHp, Label valeurAttaque, Label valeurDefense,
+                                 Label valeurAttaqueSpe, Label valeurDefenseSpe, Label valeurVitesse) {
+
+        this.pokemonAffiche = pokemon;
+
+        idPokemon.setText(String.format("#%03d", pokemon.id()));
+
+        labelNom.setText(capitaliser(pokemon.nom()));
         imagePokemon.setImage(new Image(pokemon.spriteUrl(), true));
+
+        appliquerBadgeType(badgeType1, pokemon.type1());
+
+        if (pokemon.type2() != null) {
+            appliquerBadgeType(badgeType2, pokemon.type2());
+        } else {
+            badgeType2.setVisible(false);
+        }
 
         barreHp.setProgress(pokemon.hp() / STAT_MAX);
         barreAttaque.setProgress(pokemon.attaque() / STAT_MAX);
@@ -115,5 +201,35 @@ public class PokedexController {
         barreAttaqueSpe.setProgress(pokemon.attaqueSpe() / STAT_MAX);
         barreDefenseSpe.setProgress(pokemon.defenseSpe() / STAT_MAX);
         barreVitesse.setProgress(pokemon.vitesse() / STAT_MAX);
+
+        valeurHp.setText(String.valueOf(pokemon.hp()));
+        valeurAttaque.setText(String.valueOf(pokemon.attaque()));
+        valeurDefense.setText(String.valueOf(pokemon.defense()));
+        valeurAttaqueSpe.setText(String.valueOf(pokemon.attaqueSpe()));
+        valeurDefenseSpe.setText(String.valueOf(pokemon.defenseSpe()));
+        valeurVitesse.setText(String.valueOf(pokemon.vitesse()));
+    }
+
+    private String capitaliser(String texte) {
+        if (texte == null || texte.isEmpty()) {
+            return texte;
+        }
+        return texte.substring(0, 1).toUpperCase() + texte.substring(1);
+    }
+
+    private void appliquerBadgeType(Label badge, String type) {
+        badge.setText(type.toUpperCase());
+        badge.getStyleClass().removeIf(classe -> classe.startsWith("type-"));
+        badge.getStyleClass().add("type-badge");
+        badge.getStyleClass().add("type-" + type);
+        badge.setVisible(true);
+    }
+
+    private void rafraichirListe(ListView<String> listePokemons, List<Pokemon> pokemons) {
+        ObservableList<String> noms = FXCollections.observableArrayList();
+        for (Pokemon p : pokemons) {
+            noms.add(p.nom());
+        }
+        listePokemons.setItems(noms);
     }
 }
