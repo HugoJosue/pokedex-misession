@@ -52,11 +52,9 @@ mvn javafx:run
 
 ## Captures d'écran
 
-[À ajouter : quelques captures de l'application en action]
 
-## Bonus implémentés
 
-[À compléter selon ce que vous avez réellement ajouté]
+
 
 ## Auteur
 
